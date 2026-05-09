@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LSAT Logic-Box</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        :root {
+            --bg-color: #f7f9fa;
+            --text-main: #2d3748;
+            --accent: #4a5568;
+            --success: #38a169;
+            --error: #e53e3e;
+            --card-bg: #ffffff;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .app-container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1 { font-size: 1.5rem; margin-top: 0; border-bottom: 2px solid #edf2f7; padding-bottom: 10px; }
+        .stimulus { font-size: 1.1rem; margin-bottom: 20px; padding: 15px; background: #edf2f7; border-radius: 8px; border-left: 4px solid var(--accent); }
+        .deconstruct-area { margin-bottom: 20px; }
+        .choices { display: none; flex-direction: column; gap: 10px; }
+        .choice-btn {
+            text-align: left; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; font-size: 1rem; cursor: pointer; transition: all 0.2s;
+        }
+        .choice-btn:hover { background: #edf2f7; }
+        button.action-btn {
+            background: var(--accent); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 1rem; cursor: pointer; width: 100%; margin-top: 10px;
+        }
+        .feedback { margin-top: 20px; padding: 15px; border-radius: 8px; display: none; }
+        .feedback.correct { background: #c6f6d5; color: #22543d; border: 1px solid var(--success); }
+        .feedback.incorrect { background: #fed7d7; color: #742a2a; border: 1px solid var(--error); }
+        .breathe-widget { text-align: center; margin-bottom: 20px; font-style: italic; color: #718096; }
+        textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 10px; box-sizing: border-box; font-family: inherit;}
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>Logic-Box: Core Conditionals</h1>
+    
+    <div class="breathe-widget" id="breatheText">
+        Take a breath. Ignore the clock. Read for structure.
+    </div>
+
+    <div id="questionContainer">
+        <!-- Question content loads here -->
+    </div>
+
+    <div class="deconstruct-area" id="deconstructArea">
+        <p><strong>Step 1: Translate the If/Then</strong></p>
+        <p style="font-size: 0.9rem; color: #718096;">Before looking at choices, write out the core premise (e.g., "If X happens -> Y happens").</p>
+        <textarea id="translationInput" rows="3" placeholder="If... then..."></textarea>
+        
+        <p><strong>Step 2: Anticipate the Trap</strong></p>
+        <select id="trapSelect" style="width:100%; padding: 10px; border-radius:8px; margin-bottom:15px;">
+            <option value="">Select the likely flaw in this argument...</option>
+            <option value="reverse">Confusing Necessary for Sufficient (Flipping it)</option>
+            <option value="negate">Denying the Antecedent (Negating it)</option>
+            <option value="correlation">Mistaking Correlation for Causation</option>
+            <option value="equivocation">Shifting the meaning of a word</option>
+        </select>
+
+        <button class="action-btn" onclick="revealChoices()">Unlock Choices</button>
+    </div>
+
+    <div class="choices" id="choicesArea">
+        <!-- Choices load here -->
+    </div>
+
+    <div id="feedbackArea" class="feedback"></div>
+    <button id="nextBtn" class="action-btn" style="display:none; background: #2b6cb0;" onclick="loadNextQuestion()">Next Question</button>
+</div>
+
+<script>
+    const questions = [
+        {
+            stimulus: "If a movie is formally brilliant, it will receive critical acclaim. Therefore, since 'The Quiet Man' received massive critical acclaim, it must be formally brilliant.",
+            trap: "reverse",
+            choices: [
+                { text: "It assumes what it sets out to prove.", correct: false },
+                { text: "It mistakes a condition that is sufficient for an outcome with a condition that is necessary for that outcome.", correct: true },
+                { text: "It relies on an ambiguous definition of 'critical acclaim'.", correct: false },
+                { text: "It attacks the critics rather than addressing the substance of the movie.", correct: false }
+            ],
+            explanation: "The argument says: Formally Brilliant -> Acclaim. It then sees Acclaim, and concludes Formally Brilliant. This is the classic 'Reversal' trap. Acclaim is necessary, but not sufficient to prove brilliance."
+        },
+        {
+            stimulus: "Anyone who practices piano daily will improve their dexterity. Sam's dexterity has not improved. Therefore, Sam must not be practicing piano daily.",
+            trap: "valid", // Trick question, it's a valid contrapositive!
+            choices: [
+                { text: "The reasoning is flawed because it ignores other ways to improve dexterity.", correct: false },
+                { text: "The reasoning is flawed because it assumes piano is the only way to gain dexterity.", correct: false },
+                { text: "The reasoning is structurally sound.", correct: true },
+                { text: "The reasoning relies on an emotional appeal.", correct: false }
+            ],
+            explanation: "This is a valid contrapositive! If Piano -> Dexterity. We have NO Dexterity. Therefore -> NO Piano. The trap here is expecting a flaw where there isn't one."
+        }
+    ];
+
+    let currentQ = 0;
+
+    function loadQuestion() {
+        const q = questions[currentQ];
+        document.getElementById('questionContainer').innerHTML = `<div class="stimulus">${q.stimulus}</div>`;
+        document.getElementById('translationInput').value = '';
+        document.getElementById('trapSelect').value = '';
+        document.getElementById('deconstructArea').style.display = 'block';
+        document.getElementById('choicesArea').style.display = 'none';
+        document.getElementById('feedbackArea').style.display = 'none';
+        document.getElementById('nextBtn').style.display = 'none';
+        
+        const choicesHtml = q.choices.map((choice, index) => 
+            `<button class="choice-btn" onclick="checkAnswer(${index})">${String.fromCharCode(65 + index)}. ${choice.text}</button>`
+        ).join('');
+        document.getElementById('choicesArea').innerHTML = choicesHtml;
+    }
+
+    function revealChoices() {
+        const trap = document.getElementById('trapSelect').value;
+        if(!trap) {
+            alert("Please identify the trap first. It's okay to guess, but make a choice!");
+            return;
+        }
+        document.getElementById('deconstructArea').style.display = 'none';
+        document.getElementById('choicesArea').style.display = 'flex';
+    }
+
+    function checkAnswer(choiceIndex) {
+        const q = questions[currentQ];
+        const isCorrect = q.choices[choiceIndex].correct;
+        const feedback = document.getElementById('feedbackArea');
+        
+        feedback.style.display = 'block';
+        if(isCorrect) {
+            feedback.className = 'feedback correct';
+            feedback.innerHTML = `<strong>Correct!</strong> <br><br>${q.explanation}`;
+            document.getElementById('nextBtn').style.display = 'block';
+        } else {
+            feedback.className = 'feedback incorrect';
+            feedback.innerHTML = `<strong>Not quite.</strong> Take a breath. Look at how the original 'If/Then' relates to the conclusion. Try another choice.`;
+        }
+    }
+
+    function loadNextQuestion() {
+        currentQ++;
+        if(currentQ >= questions.length) {
+            document.getElementById('questionContainer').innerHTML = `<h2>Workout Complete.</h2><p>You maintained momentum and focused on structure. Great job.</p>`;
+            document.getElementById('choicesArea').style.display = 'none';
+            document.getElementById('feedbackArea').style.display = 'none';
+            document.getElementById('nextBtn').style.display = 'none';
+        } else {
+            loadQuestion();
+        }
+    }
+
+    // Init
+    loadQuestion();
+</script>
+</body>
+</html>
